@@ -61,6 +61,7 @@ phishing-website-detection-tool/
 ├── server/                     # Python Flask Backend Service
 │   ├── app.py                  # Flask API, Hybrid Risk Scoring & Scheduler
 │   ├── train_model.py          # Random Forest ML Training Script
+│   ├── evaluate.py             # Held-out test set evaluation (metrics)
 │   ├── usom_service.py         # USOM Live Feeds Sync Service (10 min scheduler)
 │   ├── whois_age_service.py    # WHOIS Domain Age Lookup Service
 │   ├── trust_list.py           # Tranco Top Sites Whitelist Service
@@ -99,7 +100,16 @@ cd server
 python train_model.py
 ```
 
-### 3. Loading the Extension in Chromium-Based Browsers
+### 3. (Optional) Evaluating the ML Model
+
+Reproduces the training setup and reports metrics on the held-out 20% test split:
+
+```bash
+cd server
+python evaluate.py
+```
+
+### 4. Loading the Extension in Chromium-Based Browsers
 
 1. Open any Chromium-based browser (Chromium, Google Chrome, Brave, Microsoft Edge, Opera, etc.) and navigate to `(browser's name)://extensions/` (replace `(browser's name)` with the name of your browser).
 2. Enable **Developer mode** using the toggle switch in the top right corner.
@@ -131,6 +141,20 @@ The model utilizes 16 critical URL and DOM features for training and inference:
 | `NoOfCSS` | Count of external CSS references |
 | `NoOfJS` | Count of external JS scripts |
 | `NoOfExternalRef` | Count of external domain hyperlink references |
+
+---
+
+## Model Evaluation
+
+The model is trained on the [PhiUSIIL Phishing URL Dataset](https://archive.ics.uci.edu/dataset/967/phiusiil+phishing+url+dataset) (235,795 URLs) with a stratified 80/20 train/test split (`random_state=42`). All metrics below are measured on the 20% test set, which the model never sees during training. Phishing (label `0`) is the positive class. Run `python evaluate.py` to reproduce them.
+
+<!-- Replace this table with the one printed by evaluate.py -->
+| Model | Accuracy | F1 (phishing) | ROC-AUC |
+| :--- | :---: | :---: | :---: |
+| URL + DOM features (16) | 99.98% | 99.98% | 0.9999 |
+| URL features only (9) | 99.7% | – | – |
+
+**Limitations.** PhiUSIIL is known to be easily separable: phishing and legitimate pages differ sharply on features such as lines of code and external references, and results above 99% are common in published work on this dataset. Performance on newer, more carefully crafted phishing pages in the wild is expected to be lower. For this reason, the extension does not rely on the ML model alone. It combines the model with brand-spoofing heuristics, WHOIS domain age, Tranco allow-listing and the USOM blocklist, and collects user reports of false positives and missed phishing pages.
 
 ---
 
